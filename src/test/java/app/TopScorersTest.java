@@ -1,40 +1,113 @@
 package app;
 
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.io.IOException;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 public class TopScorersTest {
+    private static final String TEST_CSV_FILE_PATH = "src/test/resources/TestData.csv";
+    private static final String NON_EXISTENT_CSV_FILE_PATH = "src/test/resources/NonExistentData.csv";
 
-    private static final String CSV_FILE = "src/main/resources/TestData.csv";
+    private TopScorers topScorers;
 
     @BeforeEach
-    public void setup() {
+    void setUp() {
+        topScorers = new TopScorers();
     }
 
     @Test
-    public void testReadCSVFile() throws IOException {
-        List<String[]> rows = TopScorers.readCSVFile(CSV_FILE);
+    void testLoadCSVFile_ValidFilePath_RowsLoaded() {
+        topScorers.loadCSVFile(TEST_CSV_FILE_PATH);
+        List<String[]> rows = topScorers.getRows();
 
-        // Verify that rows are not null
-        Assertions.assertNotNull(rows);
+        assertNotNull(rows);
+        assertFalse(rows.isEmpty());
+        assertEquals(5, rows.size());
+    }
 
-        // Verify the number of rows read from the CSV file
-        Assertions.assertEquals(5, rows.size());
+    @Test
+    void testLoadCSVFile_EmptyFilePath_RowsNotLoaded() {
+        topScorers.loadCSVFile("");
+        List<String[]> rows = topScorers.getRows();
 
-        // Verify the content of the first row
-        String[] firstRow = rows.get(1);
-        Assertions.assertEquals("Dee", firstRow[0]);
-        Assertions.assertEquals("Moore", firstRow[1]);
-        Assertions.assertEquals("56", firstRow[2]);
+        assertNull(rows);
+    }
 
-        // Verify the content of the last row
-        String[] lastRow = rows.get(rows.size() - 1);
-        Assertions.assertEquals("George", lastRow[0]);
-        Assertions.assertEquals("Of The Jungle", lastRow[1]);
-        Assertions.assertEquals("78", lastRow[2]);
+    @Test
+    void testLoadCSVFile_NonExistentFilePath_RowsNotLoaded() {
+        topScorers.loadCSVFile(NON_EXISTENT_CSV_FILE_PATH);
+        List<String[]> rows = topScorers.getRows();
+
+        assertNull(rows);
+    }
+
+    @Test
+    void testHasRows_RowsExist_ReturnsTrue() {
+        List<String[]> rows = new ArrayList<>();
+        rows.add(new String[]{"John", "Doe", "80"});
+        topScorers.setRows(rows);
+
+        assertTrue(topScorers.hasRows());
+    }
+
+    @Test
+    void testHasRows_NoRows_ReturnsFalse() {
+        assertFalse(topScorers.hasRows());
+    }
+
+    @Test
+    void testProcessScores_RowsExist_ScoresProcessed() {
+        List<String[]> rows = new ArrayList<>();
+        rows.add(new String[]{"John", "Doe", "80"});
+        rows.add(new String[]{"Jane", "Smith", "90"});
+        topScorers.setRows(rows);
+
+        topScorers.processScores();
+        Map<Integer, List<String>> scores = topScorers.getScores();
+        int maxScore = topScorers.getMaxScore();
+
+        assertNotNull(scores);
+        assertEquals(2, scores.size());
+        assertTrue(scores.containsKey(80));
+        assertTrue(scores.containsKey(90));
+        assertEquals(1, scores.get(80).size());
+        assertEquals(1, scores.get(90).size());
+        assertEquals(90, maxScore);
+    }
+
+    @Test
+    void testPrintTopScorers_ScoresExist_TopScorersPrinted() {
+        List<String[]> rows = new ArrayList<>();
+        rows.add(new String[]{"John", "Doe", "90"});
+        rows.add(new String[]{"Jane", "Smith", "90"});
+        topScorers.setRows(rows);
+        topScorers.processScores();
+
+        // Redirect System.out to capture output
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(outputStream));
+
+        topScorers.printTopScorers();
+
+        String expectedOutput = String.join(System.lineSeparator(),"Jane Smith","John Doe","Score: 90","");
+        assertEquals(expectedOutput, outputStream.toString());
+    }
+
+    @Test
+    void testPrintTopScorers_NoScores_NoOutput() {
+        // Redirect System.out to capture output
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(outputStream));
+
+        topScorers.printTopScorers();
+
+        assertEquals("", outputStream.toString());
     }
 }
